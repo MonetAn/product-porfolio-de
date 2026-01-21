@@ -18,7 +18,7 @@
 
 .gantt-timeline-row {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 320px 1fr;
 }
 
 .gantt-header-label {
@@ -56,9 +56,9 @@
 
 .gantt-row {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 320px 1fr;
   border-bottom: 1px solid hsl(var(--border));
-  min-height: 48px;
+  min-height: 64px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -67,12 +67,18 @@
   background: hsl(var(--secondary));
 }
 
+.gantt-row.highlighted {
+  background: hsl(var(--primary) / 0.15);
+  border-left: 4px solid hsl(var(--primary));
+}
+
 .gantt-row-label {
   padding: 8px 16px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   border-right: 1px solid hsl(var(--border));
+  gap: 2px;
 }
 
 .gantt-row-name {
@@ -89,6 +95,24 @@
   color: hsl(var(--muted-foreground));
 }
 
+.gantt-row-costs {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.gantt-cost-total {
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.gantt-cost-period {
+  font-size: 11px;
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
 .gantt-row-timeline {
   position: relative;
   display: flex;
@@ -100,12 +124,12 @@
 /* Segments */
 .gantt-segment {
   position: absolute;
-  height: 24px;
+  height: 28px;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   color: white;
   font-weight: 500;
   cursor: pointer;
@@ -116,14 +140,17 @@
   filter: brightness(1.1);
 }
 
+/* Change - Orange */
 .gantt-segment.change {
   background: hsl(var(--change));
 }
 
+/* Support - Green */
 .gantt-segment.support {
   background: hsl(var(--support));
 }
 
+/* Off-track overlay - hatching */
 .gantt-segment.off-track {
   background-image: repeating-linear-gradient(
     45deg,

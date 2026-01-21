@@ -179,6 +179,20 @@ export function calculateBudget(row: RawDataRow, selectedQuarters: string[]): nu
   return total;
 }
 
+// Calculate total budget across ALL quarters (for Gantt total cost)
+export function calculateTotalBudget(row: RawDataRow): number {
+  let total = 0;
+  Object.values(row.quarterlyData).forEach(qData => {
+    total += qData.budget;
+  });
+  return total;
+}
+
+// Get all quarters where initiative has budget
+export function getInitiativeQuarters(row: RawDataRow): string[] {
+  return Object.keys(row.quarterlyData).filter(q => row.quarterlyData[q].budget > 0);
+}
+
 export function isInitiativeSupport(row: RawDataRow, selectedQuarters: string[]): boolean {
   if (selectedQuarters.length === 0) return false;
   const lastQ = selectedQuarters[selectedQuarters.length - 1];
@@ -444,7 +458,132 @@ export function adjustBrightness(hex: string, percent: number): string {
 }
 
 // ===== STAKEHOLDERS TREE BUILDING =====
+// Respects showTeams and showInitiatives toggles just like Budget tree
 export function buildStakeholdersTree(rawData: RawDataRow[], options: BuildTreeOptions): TreeNode {
+  const showTeams = options.showTeams ?? false;
+  const showInitiatives = options.showInitiatives ?? false;
+
+  if (!showTeams && !showInitiatives) {
+    return buildStakeholdersUnitsOnlyTree(rawData, options);
+  } else if (showTeams && !showInitiatives) {
+    return buildStakeholdersUnitsTeamsTree(rawData, options);
+  } else if (showTeams && showInitiatives) {
+    return buildStakeholdersFullTree(rawData, options);
+  } else {
+    return buildStakeholdersUnitsInitiativesTree(rawData, options);
+  }
+}
+
+// Stakeholders -> Units only (aggregated)
+function buildStakeholdersUnitsOnlyTree(rawData: RawDataRow[], options: BuildTreeOptions): TreeNode {
+  const stakeholderMap: Record<string, { 
+    name: string; 
+    children: TreeNode[]; 
+    unitMap: Record<string, { name: string; value: number; isUnit: boolean }>;
+    isStakeholder: boolean;
+  }> = {};
+
+  rawData.forEach(row => {
+    const budget = calculateBudget(row, options.selectedQuarters);
+    if (!shouldIncludeRow(row, options, budget)) return;
+
+    const stakeholderKey = row.stakeholders || 'Без стейкхолдера';
+
+    if (!stakeholderMap[stakeholderKey]) {
+      stakeholderMap[stakeholderKey] = { 
+        name: stakeholderKey, 
+        children: [], 
+        unitMap: {},
+        isStakeholder: true 
+      };
+    }
+
+    const stakeholder = stakeholderMap[stakeholderKey];
+
+    if (!stakeholder.unitMap[row.unit]) {
+      stakeholder.unitMap[row.unit] = { name: row.unit, value: 0, isUnit: true };
+    }
+
+    stakeholder.unitMap[row.unit].value += budget;
+  });
+
+  const children = Object.values(stakeholderMap)
+    .map(sh => ({
+      ...sh,
+      children: Object.values(sh.unitMap).filter(u => u.value > 0)
+    }))
+    .filter(sh => sh.children.length > 0);
+
+  return { name: 'Все стейкхолдеры', children, isRoot: true };
+}
+
+// Stakeholders -> Units -> Teams (aggregated)
+function buildStakeholdersUnitsTeamsTree(rawData: RawDataRow[], options: BuildTreeOptions): TreeNode {
+  const stakeholderMap: Record<string, { 
+    name: string; 
+    children: TreeNode[]; 
+    unitMap: Record<string, { 
+      name: string; 
+      children: TreeNode[]; 
+      teamMap: Record<string, { name: string; value: number; isTeam: boolean }>;
+      isUnit: boolean;
+    }>;
+    isStakeholder: boolean;
+  }> = {};
+
+  rawData.forEach(row => {
+    const budget = calculateBudget(row, options.selectedQuarters);
+    if (!shouldIncludeRow(row, options, budget)) return;
+
+    const stakeholderKey = row.stakeholders || 'Без стейкхолдера';
+
+    if (!stakeholderMap[stakeholderKey]) {
+      stakeholderMap[stakeholderKey] = { 
+        name: stakeholderKey, 
+        children: [], 
+        unitMap: {},
+        isStakeholder: true 
+      };
+    }
+
+    const stakeholder = stakeholderMap[stakeholderKey];
+
+    if (!stakeholder.unitMap[row.unit]) {
+      stakeholder.unitMap[row.unit] = { 
+        name: row.unit, 
+        children: [], 
+        teamMap: {},
+        isUnit: true 
+      };
+    }
+
+    const unit = stakeholder.unitMap[row.unit];
+    const teamName = row.team || 'Без команды';
+
+    if (!unit.teamMap[teamName]) {
+      unit.teamMap[teamName] = { name: teamName, value: 0, isTeam: true };
+    }
+
+    unit.teamMap[teamName].value += budget;
+  });
+
+  const children = Object.values(stakeholderMap)
+    .map(sh => ({
+      ...sh,
+      children: Object.values(sh.unitMap)
+        .map(unit => ({
+          ...unit,
+          children: Object.values(unit.teamMap).filter(t => t.value > 0)
+        }))
+        .filter(unit => unit.children.length > 0)
+    }))
+    .filter(sh => sh.children.length > 0);
+
+  return { name: 'Все стейкхолдеры', children, isRoot: true };
+}
+
+// Stakeholders -> Units -> Teams -> Initiatives (full)
+function buildStakeholdersFullTree(rawData: RawDataRow[], options: BuildTreeOptions): TreeNode {
   const stakeholderMap: Record<string, { 
     name: string; 
     children: TreeNode[]; 
@@ -523,6 +662,68 @@ export function buildStakeholdersTree(rawData: RawDataRow[], options: BuildTreeO
           .filter(unit => unit.children.length > 0)
       };
     })
+    .filter(sh => sh.children.length > 0);
+
+  return { name: 'Все стейкхолдеры', children, isRoot: true };
+}
+
+// Stakeholders -> Units -> Initiatives directly (skip teams)
+function buildStakeholdersUnitsInitiativesTree(rawData: RawDataRow[], options: BuildTreeOptions): TreeNode {
+  const stakeholderMap: Record<string, { 
+    name: string; 
+    children: TreeNode[]; 
+    unitMap: Record<string, { 
+      name: string; 
+      children: TreeNode[];
+      isUnit: boolean;
+    }>;
+    isStakeholder: boolean;
+  }> = {};
+
+  rawData.forEach(row => {
+    const budget = calculateBudget(row, options.selectedQuarters);
+    if (!shouldIncludeRow(row, options, budget)) return;
+
+    const stakeholderKey = row.stakeholders || 'Без стейкхолдера';
+    const isSupport = isInitiativeSupport(row, options.selectedQuarters);
+    const isOffTrack = isInitiativeOffTrack(row, options.selectedQuarters);
+
+    if (!stakeholderMap[stakeholderKey]) {
+      stakeholderMap[stakeholderKey] = { 
+        name: stakeholderKey, 
+        children: [], 
+        unitMap: {},
+        isStakeholder: true 
+      };
+    }
+
+    const stakeholder = stakeholderMap[stakeholderKey];
+
+    if (!stakeholder.unitMap[row.unit]) {
+      stakeholder.unitMap[row.unit] = { 
+        name: row.unit, 
+        children: [],
+        isUnit: true 
+      };
+    }
+
+    stakeholder.unitMap[row.unit].children.push({
+      name: row.initiative,
+      value: budget,
+      description: row.description,
+      stakeholders: row.stakeholders ? row.stakeholders.split(', ') : [],
+      support: isSupport,
+      offTrack: isOffTrack,
+      quarterlyData: row.quarterlyData,
+      isInitiative: true
+    });
+  });
+
+  const children = Object.values(stakeholderMap)
+    .map(sh => ({
+      ...sh,
+      children: Object.values(sh.unitMap).filter(unit => unit.children.length > 0)
+    }))
     .filter(sh => sh.children.length > 0);
 
   return { name: 'Все стейкхолдеры', children, isRoot: true };

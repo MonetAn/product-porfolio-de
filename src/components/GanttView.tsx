@@ -1,13 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Upload, FileText, Search } from 'lucide-react';
 import {
   RawDataRow,
   calculateBudget,
+  calculateTotalBudget,
+  getInitiativeQuarters,
   isInitiativeSupport,
   isInitiativeOffTrack,
   formatBudgetShort,
-  formatBudget,
-  escapeHtml
+  formatBudget
 } from '@/lib/dataManager';
 import '@/styles/gantt.css';
 
@@ -20,6 +21,7 @@ interface GanttViewProps {
   selectedTeams: string[];
   selectedStakeholders: string[];
   onUploadClick?: () => void;
+  highlightedInitiative?: string | null;
 }
 
 const GanttView = ({
@@ -30,8 +32,11 @@ const GanttView = ({
   selectedUnits,
   selectedTeams,
   selectedStakeholders,
-  onUploadClick
+  onUploadClick,
+  highlightedInitiative
 }: GanttViewProps) => {
+  const highlightedRef = useRef<HTMLDivElement>(null);
+
   // Filter data based on current filters
   const filteredData = useMemo(() => {
     return rawData.filter(row => {
@@ -47,6 +52,13 @@ const GanttView = ({
       return true;
     });
   }, [rawData, selectedQuarters, hideSupport, showOnlyOfftrack, selectedUnits, selectedTeams, selectedStakeholders]);
+
+  // Scroll to highlighted initiative
+  useEffect(() => {
+    if (highlightedInitiative && highlightedRef.current) {
+      highlightedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightedInitiative, filteredData]);
 
   const quarterWidth = 160;
 
@@ -108,37 +120,55 @@ const GanttView = ({
 
       {/* Rows */}
       <div className="gantt-rows">
-        {filteredData.map((row, idx) => (
-          <div key={idx} className="gantt-row">
-            <div className="gantt-row-label">
-              <div className="gantt-row-name">{row.initiative}</div>
-              <div className="gantt-row-team">{row.unit} › {row.team || 'Без команды'}</div>
-            </div>
-            <div className="gantt-row-timeline" style={{ width: selectedQuarters.length * quarterWidth }}>
-              {selectedQuarters.map((q, qIdx) => {
-                const qData = row.quarterlyData[q];
-                if (!qData || qData.budget === 0) return null;
+        {filteredData.map((row, idx) => {
+          const totalCost = calculateTotalBudget(row);
+          const periodCost = calculateBudget(row, selectedQuarters);
+          const allQuarters = getInitiativeQuarters(row);
+          const showPeriodCost = selectedQuarters.length < allQuarters.length && periodCost !== totalCost;
+          const isHighlighted = highlightedInitiative === row.initiative;
 
-                const isSupport = qData.support;
-                const isOffTrack = !qData.onTrack;
+          return (
+            <div 
+              key={idx} 
+              ref={isHighlighted ? highlightedRef : null}
+              className={`gantt-row ${isHighlighted ? 'highlighted' : ''}`}
+            >
+              <div className="gantt-row-label">
+                <div className="gantt-row-name">{row.initiative}</div>
+                <div className="gantt-row-team">{row.unit} › {row.team || 'Без команды'}</div>
+                <div className="gantt-row-costs">
+                  <span className="gantt-cost-total">Всего: {formatBudget(totalCost)}</span>
+                  {showPeriodCost && (
+                    <span className="gantt-cost-period">Период: {formatBudget(periodCost)}</span>
+                  )}
+                </div>
+              </div>
+              <div className="gantt-row-timeline" style={{ width: selectedQuarters.length * quarterWidth }}>
+                {selectedQuarters.map((q, qIdx) => {
+                  const qData = row.quarterlyData[q];
+                  if (!qData || qData.budget === 0) return null;
 
-                return (
-                  <div
-                    key={q}
-                    className={`gantt-segment ${isSupport ? 'support' : 'change'} ${isOffTrack ? 'off-track' : ''}`}
-                    style={{
-                      left: qIdx * quarterWidth + 4,
-                      width: quarterWidth - 8
-                    }}
-                    title={`${row.initiative}\n${q.replace('-', ' ')}\nБюджет: ${formatBudget(qData.budget)}\nСтатус: ${isSupport ? 'Support' : 'Change'}${isOffTrack ? ' (Off-track)' : ''}`}
-                  >
-                    {formatBudgetShort(qData.budget)}
-                  </div>
-                );
-              })}
+                  const isSupport = qData.support;
+                  const isOffTrack = !qData.onTrack;
+
+                  return (
+                    <div
+                      key={q}
+                      className={`gantt-segment ${isSupport ? 'support' : 'change'} ${isOffTrack ? 'off-track' : ''}`}
+                      style={{
+                        left: qIdx * quarterWidth + 4,
+                        width: quarterWidth - 8
+                      }}
+                      title={`${row.initiative}\n${q.replace('-', ' ')}\nБюджет: ${formatBudget(qData.budget)}\nСтатус: ${isSupport ? 'Support' : 'Change'}${isOffTrack ? ' (Off-track)' : ''}`}
+                    >
+                      {formatBudgetShort(qData.budget)}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Legend */}
