@@ -96,6 +96,30 @@ const Index = () => {
     rebuildTree();
   }, [rebuildTree]);
 
+  // Auto-load CSV from public/data/ on mount
+  useEffect(() => {
+    const loadDefaultData = async () => {
+      try {
+        const response = await fetch('./data/portfolio.csv');
+        if (response.ok) {
+          const text = await response.text();
+          const result = parseCSV(text);
+          
+          setRawData(result.rawData);
+          setAvailableYears(result.availableYears);
+          setAvailableQuarters(result.availableQuarters);
+          setSelectedQuarters([...result.availableQuarters]);
+          setStakeholderCombinations(result.stakeholderCombinations);
+          
+          console.log('Автозагрузка данных: portfolio.csv');
+        }
+      } catch (error) {
+        console.log('Файл данных не найден, ожидание загрузки вручную');
+      }
+    };
+    
+    loadDefaultData();
+  }, []);
   // Process CSV file - shared logic for upload and drag-drop
   const processCSVFile = useCallback((file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
