@@ -23,6 +23,7 @@ interface BudgetTreemapProps {
   onNavigateBack?: () => void; // For the up arrow button - goes back one filter level
   canNavigateBack?: boolean; // Whether the back button should be visible
   onInitiativeClick?: (initiativeName: string) => void; // Navigate to Gantt on initiative click
+  onFileDrop?: (file: File) => void; // Handle file drop on empty state
 }
 
 const BudgetTreemap = ({
@@ -37,18 +38,57 @@ const BudgetTreemap = ({
   onNodeClick,
   onNavigateBack,
   canNavigateBack = false,
-  onInitiativeClick
+  onInitiativeClick,
+  onFileDrop
 }: BudgetTreemapProps) => {
   // Separate ref for D3-only container - React will NOT touch this
   const d3ContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [showHint, setShowHint] = useState(true);
+  const [isDropHovering, setIsDropHovering] = useState(false);
+  const dropCounterRef = useRef(0);
 
   // Check if data is empty
   const isEmpty = !data.children || data.children.length === 0;
 
   // Get last quarter for status display
   const lastQuarter = selectedQuarters.length > 0 ? selectedQuarters[selectedQuarters.length - 1] : null;
+
+  // Drop handlers for empty state
+  const handleDropZoneDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDropHovering(true);
+    }
+  }, []);
+
+  const handleDropZoneDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropCounterRef.current--;
+    if (dropCounterRef.current === 0) {
+      setIsDropHovering(false);
+    }
+  }, []);
+
+  const handleDropZoneDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDropZoneDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDropHovering(false);
+    dropCounterRef.current = 0;
+
+    const file = e.dataTransfer.files?.[0];
+    if (file && onFileDrop) {
+      onFileDrop(file);
+    }
+  }, [onFileDrop]);
 
   // ===== TREEMAP RENDERING - EXACTLY FROM HTML PROTOTYPE =====
   const renderTreemap = useCallback(() => {
@@ -368,7 +408,13 @@ const BudgetTreemap = ({
 
       {/* Empty/Welcome State - React managed, only shown when empty */}
       {isEmpty && (
-        <div className="welcome-empty-state">
+        <div 
+          className={`welcome-empty-state ${isDropHovering ? 'drag-hover' : ''}`}
+          onDragEnter={handleDropZoneDragEnter}
+          onDragLeave={handleDropZoneDragLeave}
+          onDragOver={handleDropZoneDragOver}
+          onDrop={handleDropZoneDrop}
+        >
           <div className="welcome-icon">
             <FileText size={60} />
           </div>
@@ -381,7 +427,7 @@ const BudgetTreemap = ({
             Загрузить CSV файл
           </button>
           <p className="welcome-hint">
-            Поддерживаются файлы <code>.csv</code> с колонками: Unit, Team, Initiative и квартальными данными
+            или перетащите файл <code>.csv</code> сюда
           </p>
         </div>
       )}

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, DragEvent } from 'react';
+import { Upload } from 'lucide-react';
 import Header, { ViewType } from '@/components/Header';
 import FilterBar from '@/components/FilterBar';
 import BudgetTreemap from '@/components/BudgetTreemap';
@@ -46,8 +47,10 @@ const Index = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showOfftrackModal, setShowOfftrackModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
 
   // Get unique units and teams
   const units = [...new Set(rawData.map(r => r.unit))].sort();
@@ -87,10 +90,12 @@ const Index = () => {
     rebuildTree();
   }, [rebuildTree]);
 
-  // CSV Upload handler
-  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Process CSV file - shared logic for upload and drag-drop
+  const processCSVFile = useCallback((file: File) => {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Пожалуйста, загрузите файл в формате .csv');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -106,10 +111,52 @@ const Index = () => {
       toast.success('CSV загружен: ' + file.name);
     };
     reader.readAsText(file, 'UTF-8');
-    
+  }, []);
+
+  // CSV Upload handler (input element)
+  const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    processCSVFile(file);
     // Reset input so same file can be uploaded again
     event.target.value = '';
   };
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processCSVFile(file);
+    }
+  }, [processCSVFile]);
 
   // Navigation - drill down into a node
   const drillDown = (node: TreeNode) => {
@@ -256,7 +303,24 @@ const Index = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div 
+      className="min-h-screen bg-background overflow-hidden"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center pointer-events-none">
+          <div className="bg-card border-3 border-dashed border-primary rounded-2xl px-16 py-12 flex flex-col items-center gap-4">
+            <Upload size={48} className="text-primary" />
+            <span className="text-xl font-medium text-primary">Отпустите файл для загрузки</span>
+            <span className="text-sm text-muted-foreground">Поддерживаются файлы .csv</span>
+          </div>
+        </div>
+      )}
+
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -325,6 +389,7 @@ const Index = () => {
               setHighlightedInitiative(name);
               setCurrentView('timeline');
             }}
+            onFileDrop={processCSVFile}
           />
         )}
 
