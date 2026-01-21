@@ -503,10 +503,11 @@ const FilterBar = ({
                     {hideSupport && <Check size={10} />}
                   </span>
                   <span className="truncate" title="Выключить саппорт">Выкл. саппорт</span>
+                  <HelpCircle size={10} className="text-muted-foreground/60 flex-shrink-0" />
                 </label>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[200px] text-xs">
-                Скрывает инициативы в статусе поддержки
+              <TooltipContent side="bottom" className="max-w-[240px] text-xs">
+                Скрывает инициативу, если за последний квартал выбранного периода стоит поддержка
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -529,8 +530,8 @@ const FilterBar = ({
                   <HelpCircle size={10} className="text-muted-foreground/60" />
                 </label>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[200px] text-xs">
-                Показывает только Off-track инициативы
+              <TooltipContent side="bottom" className="max-w-[280px] text-xs">
+                Инициатива считается Off-track, если она была off-track хотя бы 1 квартал за выбранный период
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

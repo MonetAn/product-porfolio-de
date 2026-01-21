@@ -96,16 +96,25 @@ const StakeholdersTreemap = ({
 
       html += `<div class="tooltip-row"><span class="tooltip-label">Бюджет</span><span class="tooltip-value">${formatBudget(nodeValue)}</span></div>`;
 
-      if (isInitiative && nodeData.quarterlyData && lastQuarter) {
-        const qData = nodeData.quarterlyData[lastQuarter];
-        if (qData) {
-          html += `<div class="tooltip-row"><span class="tooltip-label">Поддержка</span><span class="tooltip-value">${qData.support ? 'Да' : 'Нет'}</span></div>`;
-          html += `<div class="tooltip-row"><span class="tooltip-label">Off-Track</span><span class="tooltip-value ${!qData.onTrack ? 'text-destructive' : ''}">${!qData.onTrack ? 'Да' : 'Нет'}</span></div>`;
-        }
-      }
-
       if (nodeData.description) {
         html += `<div class="tooltip-description">${escapeHtml(nodeData.description)}</div>`;
+      }
+
+      // Plan/Fact for initiatives - show last quarter with full label
+      if (isInitiative && nodeData.quarterlyData && lastQuarter) {
+        const qData = nodeData.quarterlyData[lastQuarter];
+        if (qData && (qData.metricPlan || qData.metricFact)) {
+          const [year, quarter] = lastQuarter.split('-');
+          const qLabel = `${quarter} ${year}`;
+          html += `<div class="tooltip-metrics">`;
+          if (qData.metricPlan) {
+            html += `<div class="tooltip-metric"><span class="tooltip-metric-label">План за последний квартал периода (${qLabel})</span><span class="tooltip-metric-value">${escapeHtml(qData.metricPlan)}</span></div>`;
+          }
+          if (qData.metricFact) {
+            html += `<div class="tooltip-metric"><span class="tooltip-metric-label">Факт за последний квартал периода (${qLabel})</span><span class="tooltip-metric-value">${escapeHtml(qData.metricFact)}</span></div>`;
+          }
+          html += `</div>`;
+        }
       }
 
       if (nodeData.stakeholders && nodeData.stakeholders.length > 0) {
