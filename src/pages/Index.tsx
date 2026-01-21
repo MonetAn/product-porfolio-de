@@ -283,7 +283,7 @@ const Index = () => {
       />
 
       {/* Main Content - full height without padding for immersive treemap */}
-      <main className="mt-[144px] h-[calc(100vh-144px)] overflow-hidden">
+      <main className="mt-[116px] h-[calc(100vh-116px)] overflow-hidden">
         {currentView === 'budget' && (
           <BudgetTreemap
             data={currentRoot}

@@ -9,7 +9,7 @@
      The parent (<main>) already provides a precise height via calc(100vh - ...). */
   min-height: 0;
   background: hsl(var(--card));
-  border-radius: var(--radius);
+  border-radius: 0;
   overflow: hidden;
   position: relative;
 }

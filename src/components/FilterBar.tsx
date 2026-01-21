@@ -268,7 +268,7 @@ const FilterBar = ({
   return (
     <div className="bg-card border-b border-border fixed top-14 left-0 right-0 z-40">
       {/* Single responsive row */}
-      <div className="h-auto min-h-[44px] flex flex-wrap items-center px-4 py-2 gap-2">
+      <div className="h-auto min-h-[44px] flex flex-wrap items-center px-4 py-1.5 gap-2">
         {/* Filters Group */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Unit multi-select */}
