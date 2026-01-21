@@ -39,6 +39,7 @@ const Index = () => {
   const [selectedStakeholders, setSelectedStakeholders] = useState<string[]>([]);
   const [showTeams, setShowTeams] = useState(false);
   const [showInitiatives, setShowInitiatives] = useState(false);
+  const [highlightedInitiative, setHighlightedInitiative] = useState<string | null>(null);
 
   // UI state
   const [showSearch, setShowSearch] = useState(false);
@@ -190,6 +191,7 @@ const Index = () => {
     setCurrentView(view);
     setNavigationStack([]);
     setCurrentRoot(portfolioData);
+    setHighlightedInitiative(null);
   };
 
   // Keyboard shortcuts
@@ -287,6 +289,7 @@ const Index = () => {
         onShowTeamsChange={setShowTeams}
         onShowInitiativesChange={setShowInitiatives}
         onOfftrackClick={() => setShowOfftrackModal(true)}
+        hideNestingToggles={currentView === 'gantt'}
       />
 
       {/* Main Content - full height without padding for immersive treemap */}
@@ -313,8 +316,12 @@ const Index = () => {
             onNodeClick={handleNodeClick}
             onNavigateBack={handleNavigateBack}
             canNavigateBack={selectedUnits.length > 0 || selectedTeams.length > 0}
-            onUploadClick={() => fileInputRef.current?.click()}
             selectedQuarters={selectedQuarters}
+            hasData={rawData.length > 0}
+            onInitiativeClick={(name) => {
+              setHighlightedInitiative(name);
+              setCurrentView('gantt');
+            }}
           />
         )}
 
@@ -328,6 +335,7 @@ const Index = () => {
             selectedTeams={selectedTeams}
             selectedStakeholders={selectedStakeholders}
             onUploadClick={() => fileInputRef.current?.click()}
+            highlightedInitiative={highlightedInitiative}
           />
         )}
       </main>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
-import { ArrowUp, Upload, FileText } from 'lucide-react';
+import { ArrowUp, Search, FileText } from 'lucide-react';
 import {
   TreeNode,
   formatBudget,
@@ -15,8 +15,9 @@ interface StakeholdersTreemapProps {
   onNodeClick?: (node: TreeNode) => void;
   onNavigateBack?: () => void;
   canNavigateBack?: boolean;
-  onUploadClick?: () => void;
   selectedQuarters?: string[];
+  hasData?: boolean; // true if rawData.length > 0
+  onInitiativeClick?: (initiativeName: string) => void;
 }
 
 // Separate color palette for stakeholders
@@ -36,8 +37,9 @@ const StakeholdersTreemap = ({
   onNodeClick,
   onNavigateBack,
   canNavigateBack = false,
-  onUploadClick,
-  selectedQuarters = []
+  selectedQuarters = [],
+  hasData = false,
+  onInitiativeClick
 }: StakeholdersTreemapProps) => {
   const d3ContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -115,6 +117,8 @@ const StakeholdersTreemap = ({
 
       if (nodeData.children) {
         html += '<div class="tooltip-hint">Кликните для детализации →</div>';
+      } else if (nodeData.isInitiative) {
+        html += '<div class="tooltip-hint">Кликните для перехода в Gantt →</div>';
       }
 
       tooltip.innerHTML = html;
@@ -225,7 +229,10 @@ const StakeholdersTreemap = ({
 
       div.addEventListener('click', (e: MouseEvent) => {
         e.stopPropagation();
-        if (onNodeClick) {
+        // If it's an initiative, navigate to Gantt
+        if (node.data.isInitiative && onInitiativeClick) {
+          onInitiativeClick(node.data.name);
+        } else if (onNodeClick) {
           onNodeClick(node.data);
         }
       });
@@ -253,7 +260,7 @@ const StakeholdersTreemap = ({
 
     setShowHint(true);
     setTimeout(() => setShowHint(false), 3000);
-  }, [data, isEmpty, lastQuarter, onNodeClick]);
+  }, [data, isEmpty, lastQuarter, onNodeClick, onInitiativeClick]);
 
   useEffect(() => {
     if (!isEmpty) {
@@ -303,7 +310,20 @@ const StakeholdersTreemap = ({
         />
       )}
 
-      {isEmpty && (
+      {/* Empty state - depends on whether data exists at all */}
+      {isEmpty && hasData && (
+        <div className="welcome-empty-state">
+          <div className="welcome-icon">
+            <Search size={60} />
+          </div>
+          <h1 className="welcome-title">Нет инициатив по выбранным фильтрам</h1>
+          <p className="welcome-subtitle">
+            Попробуйте изменить параметры фильтрации или сбросить фильтры
+          </p>
+        </div>
+      )}
+
+      {isEmpty && !hasData && (
         <div className="welcome-empty-state">
           <div className="welcome-icon">
             <FileText size={60} />
@@ -312,10 +332,6 @@ const StakeholdersTreemap = ({
           <p className="welcome-subtitle">
             Загрузите CSV-файл с данными для просмотра группировки по стейкхолдерам
           </p>
-          <button className="welcome-upload-btn" onClick={onUploadClick}>
-            <Upload size={24} />
-            Загрузить CSV файл
-          </button>
         </div>
       )}
     </div>
