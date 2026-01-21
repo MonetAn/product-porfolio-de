@@ -244,14 +244,19 @@ const Index = () => {
     // Don't change toggle states when going back
   }, [selectedTeams.length, selectedUnits.length, selectedStakeholders.length]);
 
-  // Reset all filters (except period and nesting toggles)
+  // Reset all filters (smart reset: if no quarters selected, restore all)
   const resetFilters = useCallback(() => {
     setSelectedUnits([]);
     setSelectedTeams([]);
     setSelectedStakeholders([]);
     setHideSupport(false);
     setShowOnlyOfftrack(false);
-  }, []);
+    
+    // Если период пустой, восстанавливаем все кварталы
+    if (selectedQuarters.length === 0) {
+      setSelectedQuarters([...availableQuarters]);
+    }
+  }, [selectedQuarters.length, availableQuarters]);
 
   // Check if any filter is active
   const hasActiveFilters = selectedUnits.length > 0 || 
